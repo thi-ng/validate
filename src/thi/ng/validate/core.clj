@@ -29,8 +29,13 @@
        [m errors path])
 
      (clojure.core/map? specs)
-     (let [[m errors] (reduce validate-specs [m errors k-path] specs)]
-       [m errors path])
+     (if-let [spec (:* specs)]
+       (let [value (get-in m k-path)
+             ks (if (clojure.core/map? value) (keys value) (range (count value)))
+             [m errors] (reduce (fn [state k] (validate-specs state [k spec])) [m errors k-path] ks)]
+         [m errors path])
+       (let [[m errors] (reduce validate-specs [m errors k-path] specs)]
+         [m errors path]))
 
      :default
      (let [[m errors]
@@ -99,10 +104,10 @@
 (def map? [clojure.core/map? "must be a map"])
 (def string? [clojure.core/string? "must be a string"])
 
-(defn- length-pred [f x msg] [#(f (count %) x) (str msg " " x)])
-(defn min-length? [x] (length-pred >= x "must have min length of "))
-(defn max-length? [x] (length-pred <= x "must have max length of "))
-(defn fixed-length? [x] (length-pred = x "must have a length of "))
+(defn- length-pred [p x msg] [#(p (count %) x) (str msg " " x)])
+(defn min-length? [x] (length-pred >= x "must have min length of"))
+(defn max-length? [x] (length-pred <= x "must have max length of"))
+(defn fixed-length? [x] (length-pred = x "must have a length of"))
 
 (defn less-than? [x] [#(< % x) (str "must be less than " x)])
 (defn greater-than? [x] [#(> % x) (str "must be greater than " x)])
