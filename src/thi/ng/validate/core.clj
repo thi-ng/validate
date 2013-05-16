@@ -18,7 +18,9 @@
       state)))
 
 (defn- validate-specs
-  "Recursively applies all given validation specs for given key/path."
+  "Recursively applies all given validation specs for given key/path.
+  If `specs` is a map, applies itself recursively for each key in the spec.
+  If `specs` is a vector of specs, applies each in succession."
   [[m errors path :as state] [k specs]]
   (let [k-path (conj path k)]
     (cond
@@ -72,8 +74,8 @@
       (require '[thi.ng.validate.core :as v])
 
       (v/validate {:a {:name \"toxi\" :age 38}}
-        :a {:name [v/required v/string? (v/min-length 4)]
-            :age  [v/number? (v/less-than 35)]
+        :a {:name [v/required v/string? (v/min-length? 4)]
+            :age  [v/number? (v/less-than? 35)]
             :city [v/required v/string?]})
       ; [{:a {:age 38, :name \"toxi\"}}
          {:a {:city (\"is required\"), :age (\"must be less than 35\")}}]
@@ -97,27 +99,26 @@
 (def map? [clojure.core/map? "must be a map"])
 (def string? [clojure.core/string? "must be a string"])
 
-(defn min-length [x] [#(>= (count %) x) (str "must have min length of " x)])
-(defn max-length [x] [#(<= (count %) x) (str "must have max length of " x)])
-(defn fixed-length [x] [#(= (count %) x) (str "must have a length of " x)])
+(defn- length-pred [f x msg] [#(f (count %) x) (str msg " " x)])
+(defn min-length? [x] (length-pred >= x "must have min length of "))
+(defn max-length? [x] (length-pred <= x "must have max length of "))
+(defn fixed-length? [x] (length-pred = x "must have a length of "))
 
-(defn less-than [x] [#(< % x) (str "must be less than " x)])
-(defn greater-than [x] [#(> % x) (str "must be greater than " x)])
+(defn less-than? [x] [#(< % x) (str "must be less than " x)])
+(defn greater-than? [x] [#(> % x) (str "must be greater than " x)])
 
 (defn matches?
+  "Takes a regex and optional error message, returns a validator spec
+  which applies `clojure.core/re-matches` as validation fn."
   ([re] (matches? re "must match regexp"))
   ([re msg] [#(re-matches re %) msg]))
-(def email (matches? #"(?i)^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,6}$" "must be a valid email address"))
-(def url (matches? #"" "must be a valid URL"))
 
-(comment
-  (validate {:a {:name "toxi" :age 38}}
-            :a {:name [required string? (min-length 4)]
-                :age  [number? (less-than 35)]
-                :city required})
+(def email?
+  "Validation spec for email addresses."
+  (matches? #"(?i)^[\w.%+-]+@[a-z0-9.-]+.[a-z]{2,6}$" "must be a valid email address"))
 
-  (validate {:aabb {:min [-100 -200 -300] :max [100 200 300]}}
-            :aabb {:min {0 neg? 1 neg? 2 neg?}
-                   :max {0 pos? 1 pos? 2 pos?}})
-
-  )
+(def url?
+  "Validation spec for URLs using comprehensive regex by Diego Perini
+  See: https://gist.github.com/dperini/729294
+       http://mathiasbynens.be/demo/url-regex"
+  (matches? #"(?i)^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$" "must be a valid URL"))
