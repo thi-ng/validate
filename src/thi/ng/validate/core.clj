@@ -20,7 +20,8 @@
 (defn- validate-specs
   "Recursively applies all given validation specs for given key/path.
   If `specs` is a map, applies itself recursively for each key in the spec.
-  If `specs` is a vector of specs, applies each in succession."
+  If `specs` is a vector of specs, applies each in succession and
+  bails at first validation failure for that key."
   [[m errors path :as state] [k specs]]
   (let [k-path (conj path k)]
     (cond
@@ -62,11 +63,23 @@
   and should return a non-`nil` value as correction. If correction
   succeeded, no error message will be added for that map entry.
 
+      (v/validate {:a \"hello world\"}
+        :a (v/max-length 5 #(.substring % 0 5)))
+      ; [{:a \"hello\"} nil]
+
   Specs can also be given as nested maps, reflecting the structure
   of the collection:
 
       key {:a {:b [validation-fn error-msg correction-fn]}
            :c [validation-fn error-msg correction-fn]}
+
+  If a `specs` map contains the wildcard key `:*` then that key's spec
+  is applied to all keys in the data map at that parent path, e.g.:
+
+      (v/validate {:a {:b [10 -20 30]}}
+        :a {:b {:* [(v/number?) (v/pos?)]}})
+      ; [{:a {:b [10 -20 30]}}
+      ;  {:a {:b {1 (\"must be positive\")}}}]
 
   If multiple validations should be applied to a key, then these must be
   given as a seq/vector. Validation for that key stops with the first
@@ -76,41 +89,64 @@
 
   Some examples using various pre-defined validators:
 
-      (require '[thi.ng.validate.core :as v])
-
       (v/validate {:a {:name \"toxi\" :age 38}}
-        :a {:name [v/required v/string? (v/min-length? 4)]
-            :age  [v/number? (v/less-than? 35)]
-            :city [v/required v/string?]})
+        :a {:name [(v/string?) (v/min-length? 4)]
+            :age  [(v/number?) (v/less-than? 35)]
+            :city [(v/required) (v/string?)]})
       ; [{:a {:age 38, :name \"toxi\"}}
-         {:a {:city (\"is required\"), :age (\"must be less than 35\")}}]
+      ;  {:a {:city (\"is required\"),
+      ;       :age (\"must be less than 35\")}}]
 
-      (v/validate {:aabb {:min [-100 -200 -300] :max [100 200 300]}}
-        :aabb {:min {0 v/neg? 1 v/neg? 2 v/neg?}
-               :max {0 v/pos? 1 v/pos? 2 v/pos?}})
-      ; [{:aabb {:max [100 200 300], :min [-100 -200 -300]}} nil]"
+      (v/validate {:aabb {:min [-100 -200 -300]
+                          :max [100 200 300]}}
+        :aabb {:min {0 (v/neg?) 1 (v/neg?) 2 (v/neg?)}
+               :max {:* (v/pos?)}})
+      ; [{:aabb {:max [100 200 300],
+      ;          :min [-100 -200 -300]}}
+      ;   nil]"
   [coll & {:as validators}]
   (->> validators
        (reduce validate-specs [coll nil []])
        (take 2)
        (vec)))
 
-(def required [#(if (sequential? %) (seq %) %) "is required"])
-(def pos? [clojure.core/pos? "must be positive"])
-(def neg? [clojure.core/neg? "must be negative"])
+;; ## Validators
 
-(def number? [clojure.core/number? "must be a number"])
-(def vector? [clojure.core/vector? "must be a vector"])
-(def map? [clojure.core/map? "must be a map"])
-(def string? [clojure.core/string? "must be a string"])
+(defn validator
+  [f err]
+  (fn [& [msg corr]]
+    (if (fn? msg) [f err msg] [f (or msg err) corr])))
 
-(defn- length-pred [p x msg] [#(p (count %) x) (str msg " " x)])
-(defn min-length? [x] (length-pred >= x "must have min length of"))
-(defn max-length? [x] (length-pred <= x "must have max length of"))
-(defn fixed-length? [x] (length-pred = x "must have a length of"))
+(defn validator-x [pred f err]
+  (fn [x & [msg corr]]
+    ((validator #(pred (f %) x) (str err " " x)) msg corr)))
 
-(defn less-than? [x] [#(< % x) (str "must be less than " x)])
-(defn greater-than? [x] [#(> % x) (str "must be greater than " x)])
+(def required
+  (validator #(if (sequential? %) (seq %) %) "is required"))
+
+(def pos?
+  (validator clojure.core/pos? "must be positive"))
+
+(def neg?
+  (validator clojure.core/neg? "must be negative"))
+
+(def number?
+  (validator clojure.core/number? "must be a number"))
+
+(def vector?
+  (validator clojure.core/vector? "must be a vector"))
+
+(def map?
+  (validator clojure.core/map? "must be a map"))
+
+(def string?
+  (validator clojure.core/string? "must be a string"))
+
+(def min-length? (validator-x >= count "must have min length of"))
+(def max-length? (validator-x <= count "must have max length of"))
+(def fixed-length? (validator-x = count "must have a length of"))
+(def less-than? (validator-x < identity "must be less than"))
+(def greater-than? (validator-x > identity "must be greater than"))
 
 (defn matches?
   "Takes a regex and optional error message, returns a validator spec
@@ -120,10 +156,15 @@
 
 (def email?
   "Validation spec for email addresses."
-  (matches? #"(?i)^[\w.%+-]+@[a-z0-9.-]+.[a-z]{2,6}$" "must be a valid email address"))
+  (matches? #"(?i)^[\w.%+-]+@[a-z0-9.-]+.[a-z]{2,6}$"
+            "must be a valid email address"))
 
 (def url?
-  "Validation spec for URLs using comprehensive regex by Diego Perini
-  See: https://gist.github.com/dperini/729294
-       http://mathiasbynens.be/demo/url-regex"
-  (matches? #"(?i)^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$" "must be a valid URL"))
+  "Validation spec for URLs using comprehensive regex by Diego Perini.
+
+  Also see:
+
+  * <https://gist.github.com/dperini/729294>
+  * <http://mathiasbynens.be/demo/url-regex>"
+  (matches? #"(?i)^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$"
+            "must be a valid URL"))

@@ -1,5 +1,5 @@
 (defproject thi.ng/validate "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "Composable data validation & correction for structured data."
   :url "http://code.thi.ng/validate"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
