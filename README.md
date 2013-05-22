@@ -26,9 +26,9 @@ The optional `correction-fn` takes a single arg (the current map value)
 and should return a non-`nil` value as correction. If correction
 succeeded, no error message will be added for that entry.
 
-    (v/validate {:a \"hello world\"}
+    (v/validate {:a "hello world"}
       :a (v/max-length 5 #(.substring % 0 5)))
-    ; [{:a \"hello\"} nil]
+    ; [{:a "hello"} nil]
 
 Specs can also be given as nested maps, reflecting the structure
 of the collection:
@@ -45,8 +45,8 @@ positive numbers, then the last item of `:b` also needs to be > 50.
       :a {:b {:* [(v/number) (v/pos)]
               2 (v/greater-than 50)}})
     ; [{:a {:b [10 -20 30]}}
-    ;  {:a {:b {1 (\"must be positive\")
-                2 (\"must be greater than 50\"}}}]
+    ;  {:a {:b {1 ("must be positive")
+                2 ("must be greater than 50"}}}]
 
 The fail fast behavior also holds true for wildcard validation:
 If wildcard validation fails for a key, any additionally given validators
@@ -54,13 +54,13 @@ for that key are ignored.
 
 Some examples using various pre-defined validators:
 
-    (v/validate {:a {:name \"toxi\" :age 38}}
+    (v/validate {:a {:name "toxi" :age 38}}
       :a {:name [(v/string) (v/min-length 4)]
           :age  [(v/number) (v/less-than 35)]
           :city [(v/required) (v/string)]})
-    ; [{:a {:age 38, :name \"toxi\"}}
-    ;  {:a {:city (\"is required\"),
-    ;       :age (\"must be less than 35\")}}]
+    ; [{:a {:age 38, :name "toxi"}}
+    ;  {:a {:city ("is required"),
+    ;       :age ("must be less than 35")}}]
 
     (v/validate {:aabb {:min [-100 -200 -300]
                         :max [100 200 300]}}
