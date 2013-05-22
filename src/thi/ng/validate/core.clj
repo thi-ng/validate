@@ -28,8 +28,9 @@
       state)))
 
 (defmulti validate-specs
-  (fn [_ [_ specs]]
+  (fn [_ [k specs]]
     (cond
+     (= :* k) :global-spec*
      (fn? (first specs)) :single-spec
      (map? specs) (if (:* specs) :nested-spec* :nested-spec)
      (sequential? specs) :multi-spec)))
@@ -39,14 +40,14 @@
   (conj (->> (validate-1 state (conj path k) specs) (take 2) (vec)) path))
 
 (defmethod validate-specs :multi-spec
-  [[_ _ path :as state] [k specs]]
+  [[m errors path :as state] [k specs]]
   (let [k-path (conj path k)]
     (reduce-specs
      (fn [[_ _ stop? :as state] spec]
        (if-not stop?
          (validate-1 state k-path spec)
          state))
-     state specs path)))
+     [m errors] specs path)))
 
 (defmethod validate-specs :nested-spec
   [[m errors path :as state] [k specs]]
@@ -63,6 +64,11 @@
         specs (remove-failed-specs state (dissoc specs :*))]
     (reduce-specs validate-specs state specs path)))
 
+(defmethod validate-specs :global-spec*
+  [[m _ path :as state] [k specs]]
+  (let [ks (if (map? m) (keys m) (range (count m)))]
+    (reduce-specs #(validate-specs % [%2 specs]) state ks path)))
+
 (defn validate
   "Validates `coll` (a map or vector) with given validation specs.
   Returns a 2-element vector of the (possibly corrected) `coll` and a
@@ -71,6 +77,14 @@
   Specs have the following format:
 
       key [validation-fn error-message correction-fn]
+
+  If multiple validations should be applied to a key, then these must be
+  given as a seq/vector:
+
+      key [[val-fn1 msg1] [val-fn2 msg2 corr-fn] ...]
+
+  Validation for a key stops with the first failure (so if `val-fn1` fails
+  (and can't be corrected), `val-fn2` will *not* be checked etc.)
 
   For each spec only the `validation-fn` is required.
   If an `error-message` is omitted, a generic one will be used.
@@ -94,7 +108,8 @@
   positive numbers, then the last item of `:b` also needs to be > 50.
 
       (v/validate {:a {:b [10 -20 30]}}
-        :a {:b {:* [(v/number) (v/pos)] 2 (v/greater-than 50)}})
+        :a {:b {:* [(v/number) (v/pos)]
+                2 (v/greater-than 50)}})
       ; [{:a {:b [10 -20 30]}}
       ;  {:a {:b {1 (\"must be positive\")
                   2 (\"must be greater than 50\"}}}]
@@ -102,13 +117,6 @@
   The fail fast behavior also holds true for wildcard validation:
   If wildcard validation fails for a key, any additionally given validators
   for that key are ignored.
-
-  If multiple validations should be applied to a key, then these must be
-  given as a seq/vector. Validation for a key stops with the first
-  failure (so if `val-fn1` fails (and can't be corrected), `val-fn2`
-  will *not* be checked etc.):
-
-      key [[val-fn1 msg1] [val-fn2 msg2 corr-fn]]
 
   Some examples using various pre-defined validators:
 
@@ -127,11 +135,17 @@
       ; [{:aabb {:max [100 200 300],
       ;          :min [-100 -200 -300]}}
       ;   nil]"
-  [coll & {:as validators}]
-  (->> validators
+  [coll & {:as specs}]
+  (->> specs
        (reduce validate-specs [coll nil []])
        (take 2)
        (vec)))
+
+(defn valid?
+  "Same as `validate`, but only acts as predicate and returns
+  true or false to indicate if validation succeeded."
+  [m & specs]
+  (-> (apply validate m specs) second nil?))
 
 ;; ## Validators
 
@@ -143,7 +157,7 @@
 (defn validator
   "Higher order function to build a validator fn which accepts
   optional an error message and/or correction fn. The constructed
-  fn the generates a validation spec. `validator` itself
+  fn then generates a validation spec. `validator` itself
   takes two args: `f` the actual validation predicate fn and a
   default validation `error` message."
   [f error]
@@ -234,7 +248,15 @@
 (defn member-of
   [set & [msg corr]]
   (let [f #(set %)
-        err (str "must be one of " set)]
+        err (str "must be one of: " (interpose ", " set))]
+    (if (fn? msg)
+      [f err msg]
+      [f (or msg err) corr])))
+
+(defn required-keys
+  [ks & [msg corr]]
+  (let [f #(every? (into #{} (keys %)) ks)
+        err (apply str "must have these keys: " (interpose ", " ks))]
     (if (fn? msg)
       [f err msg]
       [f (or msg err) corr])))
