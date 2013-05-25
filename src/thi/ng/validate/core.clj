@@ -2,6 +2,8 @@
   (:refer-clojure :exclude [map vector not]))
 
 (defn- reduce-specs
+  "Reduces given `specs` with `f` and initial `state`.
+  Then returns new state with new `path`."
   [f state specs path]
   (conj (->> specs (reduce f state) (take 2) (vec)) path))
 
@@ -178,6 +180,8 @@
     ((validator #(pred (f %) x) (str err " " x)) msg corr)))
 
 (defn not
+  "Takes a single validation spec and wraps its fn so that it returns
+  the logical opposite. Returns modified spec."
   [[f _ corr] msg]
   [#(clojure.core/not (f %)) msg corr])
 
@@ -186,6 +190,12 @@
   For collections, it uses `(seq x)` to only allow
   non-empty collections."
   (validator #(if (coll? %) (seq %) %) "is required"))
+
+(defn optional
+  "Takes a single validation spec and wraps its validation fn so that
+  it is only applied when the value is not nil. Returns modified spec."
+  [[f msg corr]]
+  [#(if-not (nil? %) (f %) true) msg corr])
 
 (def pos
   "Returns validation spec to ensure value is a positive number."
@@ -267,16 +277,17 @@
   ([re] (matches re "must match regexp"))
   ([re msg] [#(re-matches re %) msg]))
 
-(def email
+(defn email
   "Returns validation spec for email addresses."
-  (matches #"(?i)^[\w.%+-]+@[a-z0-9.-]+.[a-z]{2,6}$"
-           "must be a valid email address"))
+  ([] (email "must be a valid email address"))
+  ([msg] (matches #"(?i)^[\w.%+-]+@[a-z0-9.-]+.[a-z]{2,6}$" msg)))
 
-(def url
+(defn url
   "Returns validation spec for URLs using comprehensive regex
   by Diego Perini. Also see:
 
   * <https://gist.github.com/dperini/729294>
   * <http://mathiasbynens.be/demo/url-regex>"
-  (matches #"(?i)^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$"
-           "must be a valid URL"))
+  ([] (url "must be a valid URL"))
+  ([msg]
+     (matches #"(?i)^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$" msg)))
