@@ -19,10 +19,10 @@
   no correction fn is given, or if correction fails."
   [[coll errors :as state] path [f msg correct]]
   (let [value (get-in coll path)]
-    (if-not (f value)
+    (if-not (f path value)
       (let [msg (or msg "validation failed")]
         (if correct
-          (let [corrected (correct value)]
+          (let [corrected (correct path value)]
             (if-not (nil? corrected)
               [(assoc-in coll path corrected) errors]
               [coll (update-in errors path conj msg) true]))
@@ -177,83 +177,83 @@
   passing it to the predicate."
   [pred f err]
   (fn [x & [msg corr]]
-    ((validator #(pred (f %) x) (str err " " x)) msg corr)))
+    ((validator #(pred (f % %2) x) (str err " " x)) msg corr)))
 
 (defn not
   "Takes a single validation spec and wraps its fn so that it returns
   the logical opposite. Returns modified spec."
   [[f _ corr] msg]
-  [#(clojure.core/not (f %)) msg corr])
+  [#(clojure.core/not (f % %2)) msg corr])
 
 (def required
   "Returns validation spec to ensure the presence of a value.
   For collections, it uses `(seq x)` to only allow
   non-empty collections."
-  (validator #(if (coll? %) (seq %) %) "is required"))
+  (validator (fn [_ v] (if (coll? v) (seq v) v)) "is required"))
 
 (defn optional
   "Takes a single validation spec and wraps its validation fn so that
   it is only applied when the value is not nil. Returns modified spec."
   [[f msg corr]]
-  [#(if-not (nil? %) (f %) true) msg corr])
+  [(fn [_ v] (if-not (nil? v) (f v) true)) msg corr])
 
 (def pos
   "Returns validation spec to ensure value is a positive number."
-  (validator #(and (number? %) (pos? %)) "must be a positive number"))
+  (validator (fn [_ v] (and (number? v) (pos? v))) "must be a positive number"))
 
 (def neg
   "Returns validation spec to ensure value is a negative number."
-  (validator #(and (number? %) (neg? %)) "must be a negative number"))
+  (validator (fn [_ v] (and (number? v) (neg? v))) "must be a negative number"))
 
 (def boolean
   "Returns validation spec to ensure value is a boolean."
-  (validator #(or (true? %) (false? %)) "must be true or false"))
+  (validator (fn [_ v] (or (true? v) (false? v))) "must be true or false"))
 
 (def number
   "Returns validation spec to ensure value is a number."
-  (validator number? "must be a number"))
+  (validator (fn [_ v] (number? v)) "must be a number"))
 
 (def vector
   "Returns validation spec to ensure value is a vector."
-  (validator vector? "must be a vector"))
+  (validator (fn [_ v] (vector? v)) "must be a vector"))
 
 (def map
   "Returns validation spec to ensure value is a map."
-  (validator map? "must be a map"))
+  (validator (fn [_ v] (map? v)) "must be a map"))
 
 (def string
   "Returns validation spec to ensure value is a string."
-  (validator string? "must be a string"))
+  (validator (fn [_ v] (string? v)) "must be a string"))
 
 (def min-length
   "Returns validation spec to ensure value has a min length."
-  (validator-x >= count "must have min length of"))
+  (validator-x >= (fn [_ v] (count v)) "must have min length of"))
 
 (def max-length
   "Returns validation spec to ensure value has a max length."
-  (validator-x <= count "must have max length of"))
+  (validator-x <= (fn [_ v] (count v)) "must have max length of"))
 
 (def fixed-length
   "Returns validation spec to ensure value has the given number of elements."
-  (validator-x = count "must have a length of"))
+  (validator-x = (fn [_ v] v) "must have a length of"))
 
 (def less-than
   "Returns validation spec to ensure value is < x."
-  (validator-x < identity "must be less than"))
+  (validator-x < (fn [_ v] v) "must be less than"))
 
 (def greater-than
   "Returns validation spec to ensure value is > x."
-  (validator-x > identity "must be greater than"))
+  (validator-x > (fn [_ v] v) "must be greater than"))
 
 (def equals
   "Returns validation spec to ensure value is x."
-  (validator-x = identity "must equal"))
+  (validator-x = (fn [_ v] v) "must equal"))
 
 (defn in-range
   "Returns validation spec to ensure value is a number in
   the range `min`..`max` (inclusive)."
   [min max & [msg corr]]
-  (let [f #(and (number? %) (>= % min) (<= % max))
+  (let [f (fn [_ v] (and (number? v) (>= v min) (<= v max)))
         err (str "must be in range " min ".." max)]
     (if (fn? msg)
       [f err msg]
@@ -261,15 +261,16 @@
 
 (defn member-of
   [set & [msg corr]]
-  (let [f #(set %)
-        err (str "must be one of: " (interpose ", " set))]
+  (let [set (into #{} set)
+        f (fn [_ v] (set v))
+        err (apply str "must be one of: " (interpose ", " set))]
     (if (fn? msg)
       [f err msg]
       [f (or msg err) corr])))
 
 (defn required-keys
   [ks & [msg corr]]
-  (let [f #(every? (into #{} (keys %)) ks)
+  (let [f (fn [_ v] (every? (into #{} (keys v)) ks))
         err (apply str "must have these keys: " (interpose ", " ks))]
     (if (fn? msg)
       [f err msg]
@@ -279,7 +280,7 @@
   "Takes a regex and optional error message, returns a validator spec
   which applies `clojure.core/re-matches` as validation fn."
   ([re] (matches re "must match regexp"))
-  ([re msg] [#(re-matches re %) msg]))
+  ([re msg] [(fn [_ v] (re-matches re v)) msg]))
 
 (defn email
   "Returns validation spec for email addresses."
