@@ -1,5 +1,5 @@
 (ns thi.ng.validate.core
-  (:refer-clojure :exclude [map vector not]))
+  (:refer-clojure :exclude [map vector not boolean]))
 
 (defn- reduce-specs
   "Reduces given `specs` with `f` and initial `state`.
@@ -204,6 +204,10 @@
 (def neg
   "Returns validation spec to ensure value is a negative number."
   (validator #(and (number? %) (neg? %)) "must be a negative number"))
+
+(def boolean
+  "Returns validation spec to ensure value is a boolean."
+  (validator #(or (true? %) (false? %)) "must be true or false"))
 
 (def number
   "Returns validation spec to ensure value is a number."
