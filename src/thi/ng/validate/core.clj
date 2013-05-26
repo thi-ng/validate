@@ -88,14 +88,15 @@
   Validation for a key stops with the first failure (so if `val-fn1` fails
   (and can't be corrected), `val-fn2` will *not* be checked etc.)
 
-  For each spec only the `validation-fn` is required.
-  If an `error-message` is omitted, a generic one will be used.
-  The optional `correction-fn` takes a single arg (the current map value)
+  For each spec only the `validation-fn` is required. This function takes
+  two args: the current path into the data structure and the value at that
+  path. If an `error-message` is omitted, a generic one will be used.
+  The optional `correction-fn` takes the same two args as `validation-fn`
   and should return a non-`nil` value as correction. If correction
   succeeded, no error message will be added for that entry.
 
       (v/validate {:a \"hello world\"}
-        :a (v/max-length 5 #(.substring % 0 5)))
+        :a (v/max-length 5 (fn [_ v] (.substring v 0 5))))
       ; [{:a \"hello\"} nil]
 
   Specs can also be given as nested maps, reflecting the structure
@@ -110,8 +111,8 @@
   positive numbers, then the last item of `:b` also needs to be > 50.
 
       (v/validate {:a {:b [10 -20 30]}}
-        :a {:b {:* [(v/number) (v/pos)]
-                2 (v/greater-than 50)}})
+        :a {:b {:* (v/pos)
+                2  (v/greater-than 50)}})
       ; [{:a {:b [10 -20 30]}}
       ;  {:a {:b {1 (\"must be positive\")
                   2 (\"must be greater than 50\"}}}]
