@@ -196,7 +196,7 @@
   "Takes a single validation spec and wraps its validation fn so that
   it is only applied when the value is not nil. Returns modified spec."
   [[f msg corr]]
-  [(fn [_ v] (if-not (nil? v) (f v) true)) msg corr])
+  [(fn [_ v] (if-not (nil? v) (f _ v) true)) msg corr])
 
 (def pos
   "Returns validation spec to ensure value is a positive number."
