@@ -89,8 +89,8 @@
   (and can't be corrected), `val-fn2` will *not* be checked etc.)
 
   For each spec only the `validation-fn` is required. This function takes
-  two args: the current path into the data structure and the value at that
-  path. If an `error-message` is omitted, a generic one will be used.
+  two args: the current path into the data structure (a vector) and the value
+  at that path. If an `error-message` is omitted, a generic one will be used.
   The optional `correction-fn` takes the same two args as `validation-fn`
   and should return a non-`nil` value as correction. If correction
   succeeded, no error message will be added for that entry.
@@ -193,10 +193,23 @@
   (validator (fn [_ v] (if (coll? v) (seq v) v)) "is required"))
 
 (defn optional
-  "Takes a single validation spec and wraps its validation fn so that
-  it is only applied when the value is not nil. Returns modified spec."
-  [[f msg corr]]
-  [(fn [_ v] (if-not (nil? v) (f _ v) true)) msg corr])
+  "Takes a single validation spec and optional default value, wraps its
+  validation fn so that it is only applied when the passed value is not nil.
+  Returns modified spec.
+
+  If a default value is given and the to-be-validated value is nil the new
+  spec includes a correction fn which returns the default value.
+  If the original spec included a correction fn, then this is also wrapped
+  and only called if the original value isn't nil, or else returns the default."
+  ([spec] (optional spec nil))
+  ([[f msg corr] default]
+     (if-not (nil? default)
+       [(fn [_ v] (if-not (nil? v) (f _ v) false))
+        msg
+        (if corr
+          (fn [_ v] (if-not (nil? v) (corr _ v) default))
+          (fn [_ v] default))]
+       [(fn [_ v] (if-not (nil? v) (f _ v) true)) msg corr])))
 
 (def pos
   "Returns validation spec to ensure value is a positive number."
