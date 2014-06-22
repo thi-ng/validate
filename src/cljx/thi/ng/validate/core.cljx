@@ -96,7 +96,7 @@
   succeeded, no error message will be added for that entry.
 
       (v/validate {:a \"hello world\"}
-        :a (v/max-length 5 (fn [_ v] (.substring v 0 5))))
+        {:a (v/max-length 5 (fn [_ v] (.substring v 0 5)))})
       ; [{:a \"hello\"} nil]
 
   Specs can also be given as nested maps, reflecting the structure
@@ -111,8 +111,8 @@
   positive numbers, then the last item of `:b` also needs to be > 50.
 
       (v/validate {:a {:b [10 -20 30]}}
-        :a {:b {:* (v/pos)
-                2  (v/greater-than 50)}})
+        {:a {:b {:* (v/pos)
+                 2  (v/greater-than 50)}}})
       ; [{:a {:b [10 -20 30]}}
       ;  {:a {:b {1 (\"must be positive\")
                   2 (\"must be greater than 50\"}}}]
@@ -124,21 +124,21 @@
   Some examples using various pre-defined validators:
 
       (v/validate {:a {:name \"toxi\" :age 38}}
-        :a {:name [(v/string) (v/min-length 4)]
+        {:a {:name [(v/string) (v/min-length 4)]
             :age  [(v/number) (v/less-than 35)]
-            :city [(v/required) (v/string)]})
+            :city [(v/required) (v/string)]}})
       ; [{:a {:age 38, :name \"toxi\"}}
       ;  {:a {:city (\"is required\"),
       ;       :age (\"must be less than 35\")}}]
 
       (v/validate {:aabb {:min [-100 -200 -300]
                           :max [100 200 300]}}
-        :aabb {:min {0 (v/neg) 1 (v/neg) 2 (v/neg)}
-               :max {:* (v/pos)}})
+        {:aabb {:min {0 (v/neg) 1 (v/neg) 2 (v/neg)}
+               :max {:* (v/pos)}}})
       ; [{:aabb {:max [100 200 300],
       ;          :min [-100 -200 -300]}}
       ;   nil]"
-  [coll & {:as specs}]
+  [coll specs]
   (->> specs
        (reduce validate-specs [coll nil []])
        (take 2)
@@ -147,8 +147,8 @@
 (defn valid?
   "Same as `validate`, but only acts as predicate and returns
   true or false to indicate if validation succeeded."
-  [m & specs]
-  (-> (apply validate m specs) second nil?))
+  [m specs]
+  (-> (validate m specs) second nil?))
 
 ;; ## Validators
 
@@ -296,16 +296,25 @@
   ([re] (matches re "must match regexp"))
   ([re msg] [(fn [_ v] (re-matches re v)) msg]))
 
+(def uuid4-regexp
+  #"(?i)^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+
 (def email-regexp
   #"(?i)^[\w.%+-]+@[a-z0-9.-]+.[a-z]{2,6}$")
 
 (def url-regexp
-  #"(?i)^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$")
+  #+clj #"(?i)^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$"
+  #+cljs "([A-Za-z][A-Za-z0-9+\\-.]*):(?:(//)(?:((?:[A-Za-z0-9\\-._~!$&'()*+,;=:]|%[0-9A-Fa-f]{2})*)@)?((?:\\[(?:(?:(?:(?:[0-9A-Fa-f]{1,4}:){6}|::(?:[0-9A-Fa-f]{1,4}:){5}|(?:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){4}|(?:(?:[0-9A-Fa-f]{1,4}:){0,1}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){3}|(?:(?:[0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){2}|(?:(?:[0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}:|(?:(?:[0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})?::)(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))|(?:(?:[0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}|(?:(?:[0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})?::)|[Vv][0-9A-Fa-f]+\\.[A-Za-z0-9\\-._~!$&'()*+,;=:]+)\\]|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(?:[A-Za-z0-9\\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})*))(?::([0-9]*))?((?:/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)|/((?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?)|((?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)|)(?:\\?((?:[A-Za-z0-9\\-._~!$&'()*+,;=:@/?]|%[0-9A-Fa-f]{2})*))?(?:\\#((?:[A-Za-z0-9\\-._~!$&'()*+,;=:@/?]|%[0-9A-Fa-f]{2})*))?")
 
 (defn email
   "Returns validation spec for email addresses."
   ([] (email "must be a valid email address"))
   ([msg] (matches email-regexp msg)))
+
+(defn uuid4
+  "Returns validation spec for email addresses."
+  ([] (uuid4 "must be a valid UUID v4"))
+  ([msg] (matches uuid4-regexp msg)))
 
 (defn url
   "Returns validation spec for URLs using comprehensive regex
