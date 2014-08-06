@@ -8,11 +8,11 @@
   :source-paths ["src/cljx"]
   :test-paths ["target/test-classes"]
   
-  :profiles {:dev {:dependencies [[org.clojure/clojurescript "0.0-2246"]
-                                  [criterium "0.4.1"]]
-                   :plugins [[com.keminglabs/cljx "0.3.2"]
+  :profiles {:dev {:dependencies [[org.clojure/clojurescript "0.0-2280"]
+                                  [criterium "0.4.3"]]
+                   :plugins [[com.keminglabs/cljx "0.4.0"]
                              [lein-cljsbuild "1.0.3"]
-                             [com.cemerick/clojurescript.test "0.2.2"]
+                             [com.cemerick/clojurescript.test "0.3.1"]
                              [com.cemerick/austin "0.1.4"]]
                    :hooks [cljx.hooks]
                    :aliases {"cleantest" ["do" "clean," "cljx" "once," "test," "cljsbuild" "test"]}}}
