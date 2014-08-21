@@ -249,7 +249,7 @@
 
 (def fixed-length
   "Returns validation spec to ensure value has the given number of elements."
-  (validator-x = (fn [_ v] v) "must have a length of"))
+  (validator-x = (fn [_ v] (count v)) "must have a length of"))
 
 (def less-than
   "Returns validation spec to ensure value is < x."
