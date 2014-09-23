@@ -78,12 +78,12 @@
 
   Specs have the following format:
 
-      key [validation-fn error-message correction-fn]
+  key [validation-fn error-message correction-fn]
 
   If multiple validations should be applied to a key, then these must be
   given as a seq/vector:
 
-      key [[val-fn1 msg1] [val-fn2 msg2 corr-fn] ...]
+  key [[val-fn1 msg1] [val-fn2 msg2 corr-fn] ...]
 
   Validation for a key stops with the first failure (so if `val-fn1` fails
   (and can't be corrected), `val-fn2` will *not* be checked etc.)
@@ -95,27 +95,26 @@
   and should return a non-`nil` value as correction. If correction
   succeeded, no error message will be added for that entry.
 
-      (v/validate {:a \"hello world\"}
-        {:a (v/max-length 5 (fn [_ v] (.substring v 0 5)))})
-      ; [{:a \"hello\"} nil]
+  (v/validate {:a \"hello world\"}
+              {:a (v/max-length 5 (fn [_ v] (.substring v 0 5)))})
+  ; [{:a \"hello\"} nil]
 
   Specs can also be given as nested maps, reflecting the structure
   of the collection:
 
-      key {:a {:b [validation-fn error-msg correction-fn]}
-           :c [validation-fn error-msg correction-fn]}
+  key {:a {:b [validation-fn error-msg correction-fn]}
+       :c [validation-fn error-msg correction-fn]}
 
   If a `specs` map contains the wildcard key `:*`, then that key's spec
   is applied *first* to all keys in the data map at that parent path.
   In the example below the wildcard spec ensures all items of `:b` are
   positive numbers, then the last item of `:b` also needs to be > 50.
 
-      (v/validate {:a {:b [10 -20 30]}}
-        {:a {:b {:* (v/pos)
-                 2  (v/greater-than 50)}}})
-      ; [{:a {:b [10 -20 30]}}
-      ;  {:a {:b {1 (\"must be positive\")
-                  2 (\"must be greater than 50\"}}}]
+  (v/validate {:a {:b [10 -20 30]}}
+              {:a {:b {:* (v/pos), 2 (v/greater-than 50)}}})
+  ; [{:a {:b [10 -20 30]}}
+  ;  {:a {:b {1 (\"must be positive\")
+  ;           2 (\"must be greater than 50\"}}}]
 
   The fail fast behavior also holds true for wildcard validation:
   If wildcard validation fails for a key, any additionally given validators
@@ -123,21 +122,21 @@
 
   Some examples using various pre-defined validators:
 
-      (v/validate {:a {:name \"toxi\" :age 38}}
-        {:a {:name [(v/string) (v/min-length 4)]
-            :age  [(v/number) (v/less-than 35)]
-            :city [(v/required) (v/string)]}})
-      ; [{:a {:age 38, :name \"toxi\"}}
-      ;  {:a {:city (\"is required\"),
-      ;       :age (\"must be less than 35\")}}]
+  (v/validate {:a {:name \"toxi\" :age 38}}
+  {:a {:name [(v/string) (v/min-length 4)]
+       :age  [(v/number) (v/less-than 35)]
+       :city [(v/required) (v/string)]}})
+  ; [{:a {:age 38, :name \"toxi\"}}
+  ;  {:a {:city (\"is required\"),
+  ;       :age (\"must be less than 35\")}}]
 
-      (v/validate {:aabb {:min [-100 -200 -300]
-                          :max [100 200 300]}}
-        {:aabb {:min {0 (v/neg) 1 (v/neg) 2 (v/neg)}
-               :max {:* (v/pos)}}})
-      ; [{:aabb {:max [100 200 300],
-      ;          :min [-100 -200 -300]}}
-      ;   nil]"
+  (v/validate {:aabb {:min [-100 -200 -300]
+                      :max [100 200 300]}}
+              {:aabb {:min {0 (v/neg) 1 (v/neg) 2 (v/neg)}
+                      :max {:* (v/pos)}}})
+  ; [{:aabb {:max [100 200 300],
+  ;          :min [-100 -200 -300]}}
+  ;  nil]"
   [coll specs]
   (->> specs
        (reduce validate-specs [coll nil []])
@@ -165,7 +164,9 @@
   default validation `error` message."
   [f error]
   (fn [& [msg corr]]
-    (if (fn? msg) [f error msg] [f (or msg error) corr])))
+    (if (fn? msg)
+      [f error msg]
+      [f (or msg error) (if (fn? corr) corr (constantly corr))])))
 
 (defn validator-x
   "Similar to `validator` fn, this is an HOF to build a validator
@@ -180,6 +181,26 @@
   (fn [x & [msg corr]]
     ((validator #(pred (f % %2) x) (str err " " x)) msg corr)))
 
+(defn alts
+  "Takes a seq of validators and optional error message & correction fn.
+  Tries given validators in order and stops with first positive
+  match (or corrected value)."
+  [vals & [msg corr]]
+  (let [f (fn [path v]
+            (loop [vals vals]
+              (if vals
+                (let [[f msg' corr'] (first vals)]
+                  (if-not (f path v)
+                    (if-let [corrected (corr' path v)]
+                      corrected
+                      (recur (next vals)))
+                    true)))))
+        dmsg "didn't match any alternatives"
+        corr (if (fn? corr) corr (constantly corr))]
+    (if (fn? msg)
+      [f dmsg msg]
+      [f (or msg dmsg) corr])))
+
 (defn not
   "Takes a single validation spec and wraps its fn so that it returns
   the logical opposite. Returns modified spec."
@@ -190,7 +211,7 @@
   "Returns validation spec to ensure the presence of a value.
   For collections, it uses `(seq x)` to only allow
   non-empty collections."
-  (validator (fn [_ v] (if (coll? v) (seq v) v)) "is required"))
+  (validator (fn [_ v] (if (or (coll? v) (string? v)) (seq v) v)) "is required"))
 
 (defn optional
   "Takes a single validation spec and optional default value, wraps its
@@ -234,6 +255,10 @@
 (def map
   "Returns validation spec to ensure value is a map."
   (validator (fn [_ v] (map? v)) "must be a map"))
+
+(def function
+  "Returns validation spec to ensure value is a function."
+  (validator (fn [_ v] (fn? v)) "must be a function"))
 
 (def string
   "Returns validation spec to ensure value is a string."
