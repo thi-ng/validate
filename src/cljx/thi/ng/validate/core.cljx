@@ -1,5 +1,5 @@
 (ns thi.ng.validate.core
-  (:refer-clojure :exclude [map vector not boolean]))
+  (:refer-clojure :exclude [map vector sequential not boolean symbol keyword]))
 
 (defn- reduce-specs
   "Reduces given `specs` with `f` and initial `state`.
@@ -95,23 +95,27 @@
   and should return a non-`nil` value as correction. If correction
   succeeded, no error message will be added for that entry.
 
-  (v/validate {:a \"hello world\"}
-              {:a (v/max-length 5 (fn [_ v] (.substring v 0 5)))})
+  (v/validate
+  {:a \"hello world\"}
+  {:a (v/max-length 5 (fn [_ v] (.substring v 0 5)))})
+
   ; [{:a \"hello\"} nil]
 
   Specs can also be given as nested maps, reflecting the structure
   of the collection:
 
   key {:a {:b [validation-fn error-msg correction-fn]}
-       :c [validation-fn error-msg correction-fn]}
+  :c [validation-fn error-msg correction-fn]}
 
   If a `specs` map contains the wildcard key `:*`, then that key's spec
   is applied *first* to all keys in the data map at that parent path.
   In the example below the wildcard spec ensures all items of `:b` are
   positive numbers, then the last item of `:b` also needs to be > 50.
 
-  (v/validate {:a {:b [10 -20 30]}}
-              {:a {:b {:* (v/pos), 2 (v/greater-than 50)}}})
+  (v/validate
+  {:a {:b [10 -20 30]}}
+  {:a {:b {:* (v/pos), 2 (v/greater-than 50)}}})
+
   ; [{:a {:b [10 -20 30]}}
   ;  {:a {:b {1 (\"must be positive\")
   ;           2 (\"must be greater than 50\"}}}]
@@ -122,18 +126,19 @@
 
   Some examples using various pre-defined validators:
 
-  (v/validate {:a {:name \"toxi\" :age 38}}
+  (v/validate
+  {:a {:name \"toxi\" :age 38}}
   {:a {:name [(v/string) (v/min-length 4)]
-       :age  [(v/number) (v/less-than 35)]
-       :city [(v/required) (v/string)]}})
+  :age  [(v/number) (v/less-than 35)]
+  :city [(v/required) (v/string)]}})
+
   ; [{:a {:age 38, :name \"toxi\"}}
   ;  {:a {:city (\"is required\"),
   ;       :age (\"must be less than 35\")}}]
 
-  (v/validate {:aabb {:min [-100 -200 -300]
-                      :max [100 200 300]}}
-              {:aabb {:min {0 (v/neg) 1 (v/neg) 2 (v/neg)}
-                      :max {:* (v/pos)}}})
+  (v/validate {:aabb {:min [-100 -200 -300] :max [100 200 300]}}
+  {:aabb {:min {0 (v/neg) 1 (v/neg) 2 (v/neg)} :max {:* (v/pos)}}})
+  
   ; [{:aabb {:max [100 200 300],
   ;          :min [-100 -200 -300]}}
   ;  nil]"
@@ -252,6 +257,10 @@
   "Returns validation spec to ensure value is a vector."
   (validator (fn [_ v] (vector? v)) "must be a vector"))
 
+(def sequential
+  "Returns validation spec to ensure value is a sequential collection"
+  (validator (fn [_ v] (sequential? v)) "must be a sequential collection"))
+
 (def map
   "Returns validation spec to ensure value is a map."
   (validator (fn [_ v] (map? v)) "must be a map"))
@@ -260,9 +269,21 @@
   "Returns validation spec to ensure value is a function."
   (validator (fn [_ v] (fn? v)) "must be a function"))
 
+(def symbol
+  "Returns validation spec to ensure value is a symbol."
+  (validator (fn [_ v] (symbol? v)) "must be a symbol"))
+
+(def keyword
+  "Returns validation spec to ensure value is a keyword."
+  (validator (fn [_ v] (keyword? v)) "must be a keyword"))
+
 (def string
   "Returns validation spec to ensure value is a string."
   (validator (fn [_ v] (string? v)) "must be a string"))
+
+(def satisfies
+  "Returns validation spec to ensure value satisfies given protocol"
+  (validator-x #(satisfies? %2 %) (fn [_ v] v) "must satisfy protocol"))
 
 (def min-length
   "Returns validation spec to ensure value has a min length."
