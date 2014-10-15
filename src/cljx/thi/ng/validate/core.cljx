@@ -330,7 +330,7 @@
 
 (defn required-keys
   [ks & [msg corr]]
-  (let [f (fn [_ v] (every? (into #{} (keys v)) ks))
+  (let [f (fn [_ v] (every? (set (if (map? v) (keys v) v)) ks))
         err (apply str "must have these keys: " (interpose ", " ks))]
     (if (fn? msg)
       [f err msg]
@@ -340,13 +340,16 @@
   "Takes a regex and optional error message, returns a validator spec
   which applies `clojure.core/re-matches` as validation fn."
   ([re] (matches re "must match regexp"))
-  ([re msg] [(fn [_ v] (re-matches re v)) msg]))
+  ([re msg] [(fn [_ v] (if v (re-matches re v))) msg]))
 
 (def uuid4-regexp
   #"(?i)^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
 (def email-regexp
   #"(?i)^[\w.%+-]+@[a-z0-9.-]+.[a-z]{2,6}$")
+
+(def mailto-regexp
+  #"(?i)^mailto:[\w.%+-]+@[a-z0-9.-]+.[a-z]{2,6}$")
 
 (def url-regexp
   #+clj #"(?i)^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$"
@@ -356,6 +359,11 @@
   "Returns validation spec for email addresses."
   ([] (email "must be a valid email address"))
   ([msg] (matches email-regexp msg)))
+
+(defn mailto
+  "Returns validation spec for mailto: URIs"
+  ([] (mailto "must be a valid mailto: URI"))
+  ([msg] (matches mailto-regexp msg)))
 
 (defn uuid4
   "Returns validation spec for email addresses."
