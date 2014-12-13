@@ -281,6 +281,10 @@
   "Returns validation spec to ensure value is a string."
   (validator (fn [_ v] (string? v)) "must be a string"))
 
+(def instance
+  "Returns validation spec to ensure value satisfies given protocol"
+  (validator-x #(instance? %2 %) (fn [_ v] v) "must be an instance of"))
+
 (def satisfies
   "Returns validation spec to ensure value satisfies given protocol"
   (validator-x #(satisfies? %2 %) (fn [_ v] v) "must satisfy protocol"))
