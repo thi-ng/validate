@@ -2,7 +2,7 @@
 
 Leiningen coordinates:
 ```clj
-[thi.ng/validate "0.1.0-SNAPSHOT"]
+[thi.ng/validate "0.1.0"]
 ```
 Validates a collection (map or vector) with given validation specs.
 Returns a 2-element vector of the (possibly corrected) `coll` and a
