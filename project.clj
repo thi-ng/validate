@@ -1,4 +1,4 @@
-(defproject thi.ng/validate "0.1.0-SNAPSHOT"
+(defproject thi.ng/validate "0.1.0"
   :description  "Composable data validation & correction for structured data."
   :url          "https://github.com/thi-ng/validate"
   :license      {:name "Apache Software License, Version 2.0"
@@ -14,17 +14,16 @@
   :source-paths ["src/cljx"]
   :test-paths   ["target/test-classes"]
 
-  :profiles     {:dev {:dependencies [[org.clojure/clojurescript "0.0-2322"]
+  :profiles     {:dev {:dependencies [[org.clojure/clojurescript "0.0-2913"]
                                       [criterium "0.4.3"]]
-                       :plugins [[org.clojars.cemerick/cljx "0.5.0-SNAPSHOT"]
-                                 [lein-cljsbuild "1.0.3"]
-                                 [com.cemerick/clojurescript.test "0.3.1"]
-                                 [com.cemerick/austin "0.1.4"]]
+                       :plugins [[com.keminglabs/cljx "0.5.0"]
+                                 [lein-cljsbuild "1.0.4"]
+                                 [com.cemerick/clojurescript.test "0.3.3"]]
                        :global-vars {*warn-on-reflection* true}
                        :jvm-opts ^:replace []
                        :auto-clean false
                        :prep-tasks [["cljx" "once"] "javac" "compile"]
-                       :aliases {"cleantest" ["do" "clean" ["test" ":all"] ["cljsbuild" "test"]]}}}
+                       :aliases {"cleantest" ["do" "clean," "cljx" "once," "test," "cljsbuild" "test"]}}}
 
   :cljx         {:builds [{:source-paths ["src/cljx"]
                            :output-path "target/classes"
@@ -41,10 +40,10 @@
 
   :cljsbuild    {:builds [{:source-paths ["target/classes" "target/test-classes"]
                            :id "simple"
-                           :compiler {:output-to "target/validate-0.1.0-SNAPSHOT.js"
+                           :compiler {:output-to "target/validate-0.1.0.js"
                                       :optimizations :whitespace
                                       :pretty-print true}}]
-                 :test-commands {"unit-tests" ["phantomjs" :runner "target/validate-0.1.0-SNAPSHOT.js"]}}
+                 :test-commands {"unit-tests" ["phantomjs" :runner "target/validate-0.1.0.js"]}}
 
 
   :pom-addition [:developers [:developer
