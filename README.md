@@ -41,7 +41,7 @@ like this:
  key2 ...}
 ```
 
-Key in a validation spec can be of any datatype. If multiple
+Keys in a validation spec can be of any datatype. If multiple
 validations should be applied to a key, then these must be given as a
 seq/vector:
 
@@ -84,7 +84,7 @@ added for that entry.
 Specs can also be given
 as nested maps, reflecting the structure of the target collection:
 
-```clj key
+```clj
 {:a {:b [validation-fn error-msg correction-fn]}
      :c [validation-fn error-msg correction-fn]}
 ```
