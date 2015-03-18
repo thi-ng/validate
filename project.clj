@@ -1,4 +1,4 @@
-(defproject thi.ng/validate "0.1.0"
+(defproject thi.ng/validate "0.1.1"
   :description  "Composable data validation & correction for structured data."
   :url          "https://github.com/thi-ng/validate"
   :license      {:name "Apache Software License, Version 2.0"
@@ -14,10 +14,10 @@
   :source-paths ["src/cljx"]
   :test-paths   ["target/test-classes"]
 
-  :profiles     {:dev {:dependencies [[org.clojure/clojurescript "0.0-2913"]
+  :profiles     {:dev {:dependencies [[org.clojure/clojurescript "0.0-3117"]
                                       [criterium "0.4.3"]]
-                       :plugins [[com.keminglabs/cljx "0.5.0"]
-                                 [lein-cljsbuild "1.0.4"]
+                       :plugins [[com.keminglabs/cljx "0.6.0"]
+                                 [lein-cljsbuild "1.0.5"]
                                  [com.cemerick/clojurescript.test "0.3.3"]]
                        :global-vars {*warn-on-reflection* true}
                        :jvm-opts ^:replace []
@@ -40,10 +40,10 @@
 
   :cljsbuild    {:builds [{:source-paths ["target/classes" "target/test-classes"]
                            :id "simple"
-                           :compiler {:output-to "target/validate-0.1.0.js"
+                           :compiler {:output-to "target/validate-0.1.1.js"
                                       :optimizations :whitespace
                                       :pretty-print true}}]
-                 :test-commands {"unit-tests" ["phantomjs" :runner "target/validate-0.1.0.js"]}}
+                 :test-commands {"unit-tests" ["phantomjs" :runner "target/validate-0.1.1.js"]}}
 
 
   :pom-addition [:developers [:developer
