@@ -24,3 +24,10 @@
     (is (= "must be less than 35" (first (get-in err [:people 0 :age]))))
     (is (nil? (get-in err [:people 1])))
     ))
+
+(deftest required-boolean
+  (let [m {:a false :b true}
+        [m err] (v/validate m {:a (v/required) :b (v/required)})]
+    (is (nil? (:a err)))
+    (is (nil? (:b err)))
+    (is (:c err))))

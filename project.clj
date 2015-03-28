@@ -1,4 +1,4 @@
-(defproject thi.ng/validate "0.1.1"
+(defproject thi.ng/validate "0.1.2"
   :description  "Composable data validation & correction for structured data."
   :url          "https://github.com/thi-ng/validate"
   :license      {:name "Apache Software License, Version 2.0"
@@ -40,10 +40,10 @@
 
   :cljsbuild    {:builds [{:source-paths ["target/classes" "target/test-classes"]
                            :id "simple"
-                           :compiler {:output-to "target/validate-0.1.1.js"
+                           :compiler {:output-to "target/validate-0.1.2.js"
                                       :optimizations :whitespace
                                       :pretty-print true}}]
-                 :test-commands {"unit-tests" ["phantomjs" :runner "target/validate-0.1.1.js"]}}
+                 :test-commands {"unit-tests" ["phantomjs" :runner "target/validate-0.1.2.js"]}}
 
 
   :pom-addition [:developers [:developer

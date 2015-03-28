@@ -216,7 +216,7 @@
   "Returns validation spec to ensure the presence of a value.
   For collections, it uses `(seq x)` to only allow
   non-empty collections."
-  (validator (fn [_ v] (if (or (coll? v) (string? v)) (seq v) v)) "is required"))
+  (validator (fn [_ v] (if (or (coll? v) (string? v)) (seq v) (clojure.core/not (nil? v)))) "is required"))
 
 (defn optional
   "Takes a single validation spec and optional default value, wraps its
