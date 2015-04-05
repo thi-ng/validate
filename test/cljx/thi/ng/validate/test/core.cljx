@@ -26,8 +26,26 @@
     ))
 
 (deftest required-boolean
-  (let [m {:a false :b true}
-        [m err] (v/validate m {:a (v/required) :b (v/required)})]
+  (let [m {:a false :b true :c nil}
+        [m err] (v/validate m {:a (v/required) :b (v/required) :c (v/required)})]
     (is (nil? (:a err)))
     (is (nil? (:b err)))
     (is (:c err))))
+
+(deftest valid-email
+  (let [email? (partial (first (v/email)) nil)]
+    (is (email? "a@foo.com"))
+    (is (email? "a.b+sp4m@foo.bar.co"))
+    (is (not (email? "a@b.c")))
+    (is (not (email? "thi@ng")))))
+
+(deftest valid-url
+  (let [uri? (partial (first (v/url)) nil)]
+    (is (uri? "http://thi.ng"))
+    (is (uri? "https://thi.ng/validate/"))
+    (is (uri? "http://thi.ng/validate?foo=bar&baz=42"))
+    (is (uri? "http://127.0.0.1/foo?bar=a%20b"))
+    (is (uri? "ftp://foo:bar*@127.0.0.1/"))
+    (is (not (uri? "http:/thi.ng")))
+    (is (not (uri? "htp://thi.ng")))
+    (is (not (uri? "thi.ng")))))

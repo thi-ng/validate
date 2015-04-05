@@ -6,7 +6,7 @@ associative collection (map or vector) via given validation specs.
 ## Leiningen coordinates
 
 ```clj
-[thi.ng/validate "0.1.2"]
+[thi.ng/validate "0.1.3"]
 ```
 
 ## Usage

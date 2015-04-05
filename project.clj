@@ -1,4 +1,4 @@
-(defproject thi.ng/validate "0.1.2"
+(defproject thi.ng/validate "0.1.3"
   :description  "Composable data validation & correction for structured data."
   :url          "https://github.com/thi-ng/validate"
   :license      {:name "Apache Software License, Version 2.0"
